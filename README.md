@@ -1,4 +1,16 @@
-# RDR2 + Assassin's Creed Unity: Windows installation check
+# RDR2: экспериментальный паркур и проверка установок
+
+## Новый игровой прототип для RDR2
+
+[Assassin Traversal — Windows x64](mods/parkour-rdr2/README.md): ASI-мод с первым
+зацепом за уступ, висом и подъёмом. **Экспериментальный, в игре пока не проверен;
+не полный перенос паркура Assassin's Creed.**
+
+[Скачать Windows ZIP](https://github.com/iskandario/rdr2-lego-windows-check/releases/download/traversal-v0.1.0/AssassinTraversal-Windows-x64-experimental.zip).
+Распакуй весь архив → `INSTALL.cmd`. Требуется отдельно установленный ScriptHookRDR2.
+F8 включить, G зацепиться, E подняться, Q отпустить, F9 отключить. Только сюжетный режим.
+
+## Прежняя проверка установок (не мод)
 
 **Это проверка установок, не игровой кроссовер.** Версия 0.2.0 переключена с LEGO на Assassin's Creed Unity по запросу владельца. Название репозитория сохранено для старых ссылок.
 

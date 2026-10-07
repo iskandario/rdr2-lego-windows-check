@@ -1,0 +1,59 @@
+name: Build RDR2 traversal Windows x64
+on:
+  push:
+    paths:
+      - 'mods/parkour-rdr2/**'
+      - '.github/workflows/parkour-windows.yml'
+  pull_request:
+    paths:
+      - 'mods/parkour-rdr2/**'
+      - '.github/workflows/parkour-windows.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned build-only ScriptHookRDR2 SDK (not redistributed)
+        shell: pwsh
+        run: |
+          git clone https://github.com/Smerdokryl/RDR2_SDK.git "$env:RUNNER_TEMP/rdr2-sdk"
+          if ($LASTEXITCODE -ne 0) { throw 'SDK clone failed' }
+          git -C "$env:RUNNER_TEMP/rdr2-sdk" checkout --detach ef53fc71e0ad95cfa8e72a63f15e1c6aa38091de
+          if ($LASTEXITCODE -ne 0) { throw 'SDK pin failed' }
+      - name: Configure and compile ASI and tests
+        shell: pwsh
+        run: |
+          cmake -S mods/parkour-rdr2 -B build-parkour -A x64 "-DRDR2_SDK=$env:RUNNER_TEMP/rdr2-sdk/SDK"
+          if ($LASTEXITCODE -ne 0) { throw 'Configure failed' }
+          cmake --build build-parkour --config Release
+          if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
+          ctest --test-dir build-parkour -C Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { throw 'Tests failed' }
+      - name: Check Windows PowerShell 5.1 installer syntax
+        shell: powershell
+        run: |
+          $tokens = $null; $errorsFound = $null
+          [void][Management.Automation.Language.Parser]::ParseFile("$pwd/mods/parkour-rdr2/Install.ps1", [ref]$tokens, [ref]$errorsFound)
+          if ($errorsFound.Count) { throw ($errorsFound | Out-String) }
+      - name: Package binary (never SDK, loader or game assets)
+        shell: pwsh
+        run: |
+          $stage = New-Item -ItemType Directory -Path package
+          Copy-Item build-parkour/Release/AssassinTraversal.asi $stage
+          foreach ($file in @('AssassinTraversal.ini','INSTALL.cmd','Install.ps1','README.md','LICENSE.txt')) {
+            Copy-Item "mods/parkour-rdr2/$file" $stage
+          }
+          $lines = Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
+          }
+          $lines | Set-Content package/SHA256SUMS.txt -Encoding ascii
+          Compress-Archive -Path package/* -DestinationPath AssassinTraversal-Windows-x64-experimental.zip
+          Get-FileHash AssassinTraversal-Windows-x64-experimental.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AssassinTraversal-Windows-x64-experimental
+          path: AssassinTraversal-Windows-x64-experimental.zip
+          if-no-files-found: error
