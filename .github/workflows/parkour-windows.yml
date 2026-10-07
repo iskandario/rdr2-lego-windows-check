@@ -52,6 +52,9 @@ jobs:
           $lines | Set-Content package/SHA256SUMS.txt -Encoding ascii
           Compress-Archive -Path package/* -DestinationPath AssassinTraversal-Windows-x64-experimental.zip
           Get-FileHash AssassinTraversal-Windows-x64-experimental.zip
+      - name: Test installer with synthetic files on disposable runner
+        shell: powershell
+        run: ./mods/parkour-rdr2/tests/Test-Installer.ps1 -Package ./package
       - uses: actions/upload-artifact@v4
         with:
           name: AssassinTraversal-Windows-x64-experimental
