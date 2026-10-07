@@ -1,14 +1,17 @@
-RDR2 внутри LEGO Star Wars III — проверка Windows-установок
+RDR2 + Assassin's Creed Unity — проверка Windows-установок v0.2.0
 
 Это НЕ готовый игровой мод. Пакет собирает данные для его разработки.
-Готового опубликованного кроссовера этой пары при поиске не найдено.
+С v0.2.0 проверяются RDR2 и AC Unity вместо LEGO. Старый адрес репозитория
+сохранён для прежних ссылок. Проверка LEGO осталась в релизе v0.1.1.
 
 1. Скачай CHECK-WINDOWS.cmd из Assets последнего релиза GitHub.
    Можно также скачать ZIP и извлечь его в отдельную папку.
 2. Запусти CHECK-WINDOWS.cmd двойным кликом. Это самодостаточный файл:
    Check-Games.ps1 рядом больше не нужен, в том числе при запуске из WinRAR.
-3. На рабочем столе открой папку RDR2-LEGO-Reports и пришли созданный
-   RDR2-LEGO-report-*.json в этот чат. Полный путь появится в окне.
+3. Если Unity не найдена автоматически, выбери ACU.exe в папке игры
+   в появившемся окне. Выбор НЕ запускает игру. Можно нажать Отмена.
+4. На рабочем столе открой папку RDR2-UNITY-Reports и пришли созданный
+   RDR2-UNITY-report-*.json в этот чат. Полный путь появится в окне.
    Если рабочий стол недоступен, используются Документы или папка профиля.
 
 Исправление v0.1.1: WinRAR распаковывал только выбранный CMD во временную
@@ -23,32 +26,37 @@ ExecutionPolicy применяется только к этому запуску
 
 Что проверяется:
 - библиотеки Steam, включая другие диски из libraryfolders.vdf;
-- RDR2 (Steam 1174180) и LEGO Star Wars III (Steam 32510);
+- RDR2 (Steam 1174180, RDR2.exe) и AC Unity (Steam 289650, ACU.exe);
+- записи InstallDir в реестре Ubisoft Launcher, проверяемые по ACU.exe;
+- указанный вручную ACU.exe или папка Unity;
 - Steam build ID, версия, разрядность и SHA-256 игровых EXE;
-- имена ASI/DLL-модов в корне игры и число корневых архивов.
+- имена ASI/DLL-модов, известных плагинов ACUFixes и число RPF/forge-архивов.
+Наличие DLL в отчёте НЕ доказывает её совместимость с версией игры.
 
 Игровые файлы и сохранения не изменяются. CMD сохраняет отчёт на рабочий стол
-в RDR2-LEGO-Reports; отдельный PS1 по умолчанию сохраняет его рядом с собой.
+в RDR2-UNITY-Reports; отдельный PS1 по умолчанию сохраняет его рядом с собой.
 Аккаунты, Steam ID, полные пути и содержимое игровых файлов в отчёт не входят.
 Ничего не отправляется в сеть, игры не запускаются.
 
 Для нестандартного Steam-пути можно запустить в PowerShell:
-  .\Check-Games.ps1 -SteamRoot 'D:\Steam'
+  .\Check-Games.ps1 -SteamRoot 'D:\Steam' -UnityPath 'D:\Games\Assassins Creed Unity'
 
 Для разработчиков:
   powershell -NoProfile -File .\tools\Build-Launcher.ps1
   powershell -NoProfile -File .\tests\Test-Check.ps1
 После правок Check-Games.ps1 пересобери CMD первой командой.
-Переменная RDR2_LEGO_REPORT_ROOT задаёт другую папку отчётов для CMD;
-RDR2_LEGO_NO_PAUSE отключает ожидание клавиши для автоматических тестов.
+RDR2_CHECK_REPORT_ROOT — другая папка отчётов для CMD.
+RDR2_CHECK_UNITY_PATH — папка Unity или полный путь к ACU.exe.
+RDR2_CHECK_NONINTERACTIVE=1 — не открывать выбор файла и не ждать клавишу.
 
-Основа дальнейшей разработки:
-https://github.com/rehan-remade/universal-modder
-https://github.com/AcK77/TTGames-Explorer-Rebirth
-https://www.dev-c.com/rdr2/scripthookrdr2/
+Исходники для дальнейшей разработки (не включены и не устанавливаются):
+https://github.com/NameTaken3125/ACUFixes — заявлена Unity 1.5.0.
+https://github.com/NameTaken3125/AssetOverrides-ACUnity — замена ресурсов.
+https://github.com/antr1x/ACUFixes — ветка для Unity 1.5.1.
+https://github.com/antr1x/AssetOverrides-ACUnity — вариант для Unity 1.5.1.
+https://www.dev-c.com/rdr2/scripthookrdr2/ — Script Hook RDR2.
 
-Эти проекты — инструменты, а не готовый мост RDR2 ↔ LEGO.
-Script Hook для LEGO The Skywalker Saga не является загрузчиком для Clone Wars.
-После определения версий всё ещё нужны проверка камеры, коллизий, персонажа
-и рендера внутри запущенной LEGO Star Wars III на Windows. Сам отчёт не
-заменяет этот этап и не позволяет обещать немедленную совместимость.
+Источники проверены 2026-10-07. Это инструменты моддинга, не готовый
+кроссовер RDR2/Unity. Нельзя считать мод для 1.5.0 совместимым с 1.5.1
+только по похожему названию. Нужны версия EXE, подходящий загрузчик,
+адаптация модели/скелета/материалов и тест внутри игры на Windows.

@@ -3,7 +3,9 @@
 param(
     [string[]]$SteamRoot = @(),
     [string]$ReportRoot = $PSScriptRoot,
-    [switch]$NoAutoDiscovery
+    [switch]$NoAutoDiscovery,
+    [string]$UnityPath,
+    [switch]$PromptForMissingUnity
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,6 +35,59 @@ function Get-PeInfo([string]$Path) {
             default { return ('unknown-0x{0:x}' -f $machine) }
         }
     } finally { $reader.Dispose(); $stream.Dispose() }
+}
+
+function Get-Installation($Game, [string]$Path, [string]$Source, $BuildId, $StateFlags) {
+    $exists = Test-Path -LiteralPath $Path -PathType Container
+    $executables = @()
+    $modFiles = @()
+    $archiveCount = 0
+    if ($exists) {
+        Write-Host ('Checking ' + $Game.title + '...')
+        $files = @(Get-ChildItem -LiteralPath $Path -File)
+        $archiveCount = @($files | Where-Object { $_.Extension -in @('.rpf', '.forge') }).Count
+        $modFiles = @($files | Where-Object { $_.Extension -eq '.asi' -or $_.Name -in @('dinput8.dll','version.dll','ScriptHookRDR2.dll') } | Select-Object -ExpandProperty Name)
+        if ($Game.id -eq '289650') {
+            foreach ($relative in @('ACUFixes/ACUFixes-PluginLoader.dll', 'ACUFixes/plugins/ACUFixes.dll', 'ACUFixes/plugins/AssetOverrides.dll')) {
+                if (Test-Path -LiteralPath (Join-Path $Path $relative) -PathType Leaf) { $modFiles += $relative }
+            }
+        }
+        foreach ($exe in @($files | Where-Object { $_.Name -match $Game.exePattern })) {
+            try {
+                $executables += [ordered]@{
+                    name = $exe.Name
+                    bytes = $exe.Length
+                    architecture = Get-PeInfo $exe.FullName
+                    fileVersion = $exe.VersionInfo.FileVersion
+                    productVersion = $exe.VersionInfo.ProductVersion
+                    sha256 = (Get-FileHash -LiteralPath $exe.FullName -Algorithm SHA256).Hash
+                }
+            } catch {
+                $executables += [ordered]@{ name = $exe.Name; error = $_.Exception.GetType().Name }
+            }
+        }
+    }
+    return [ordered]@{
+        discoverySource = $Source
+        buildId = $BuildId
+        stateFlags = $StateFlags
+        directoryExists = [bool]$exists
+        executables = @($executables)
+        existingModFiles = @($modFiles)
+        rootArchiveCount = $archiveCount
+    }
+}
+
+function Resolve-UnityDirectory([string]$Path) {
+    if (-not $Path) { return $null }
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        if ([IO.Path]::GetFileName($Path) -ine 'ACU.exe') { return $null }
+        $Path = Split-Path $Path -Parent
+    }
+    if (Test-Path -LiteralPath (Join-Path $Path 'ACU.exe') -PathType Leaf) {
+        return [IO.Path]::GetFullPath($Path)
+    }
+    return $null
 }
 
 $roots = New-Object 'System.Collections.Generic.List[string]'
@@ -69,11 +124,12 @@ foreach ($root in @($roots | Select-Object -Unique)) {
 
 $games = @(
     @{ id = '1174180'; title = 'Red Dead Redemption 2'; exePattern = '(?i)^RDR2\.exe$' },
-    @{ id = '32510'; title = 'LEGO Star Wars III - The Clone Wars'; exePattern = '(?i)^LEGO.*\.exe$' }
+    @{ id = '289650'; title = "Assassin's Creed Unity"; exePattern = '(?i)^ACU\.exe$' }
 )
 $results = @()
 foreach ($game in $games) {
     $installs = @()
+    $seenPaths = @{}
     foreach ($library in @($libraries | Select-Object -Unique)) {
         $manifest = Join-Path $library ('steamapps/appmanifest_' + $game.id + '.acf')
         if (-not (Test-Path -LiteralPath $manifest -PathType Leaf)) { continue }
@@ -82,46 +138,62 @@ foreach ($game in $games) {
         $dir = Get-VdfValue $text 'installdir'
         if (-not $dir -or $dir -eq '.' -or $dir -eq '..' -or $dir.IndexOfAny([char[]]'\/:') -ge 0) { continue }
         $gamePath = Join-Path (Join-Path $library 'steamapps/common') $dir
-        $exists = Test-Path -LiteralPath $gamePath -PathType Container
-        $executables = @()
-        $modFiles = @()
-        $archiveCount = 0
-        if ($exists) {
-            Write-Host ('Checking ' + $game.title + '...')
-            $files = @(Get-ChildItem -LiteralPath $gamePath -File)
-            $archiveCount = @($files | Where-Object { $_.Extension -in @('.dat', '.rpf') }).Count
-            $modFiles = @($files | Where-Object { $_.Extension -eq '.asi' -or $_.Name -in @('dinput8.dll','version.dll','ScriptHookRDR2.dll') } | Select-Object -ExpandProperty Name)
-            foreach ($exe in @($files | Where-Object { $_.Name -match $game.exePattern })) {
-                try {
-                    $executables += [ordered]@{
-                        name = $exe.Name
-                        bytes = $exe.Length
-                        architecture = Get-PeInfo $exe.FullName
-                        fileVersion = $exe.VersionInfo.FileVersion
-                        productVersion = $exe.VersionInfo.ProductVersion
-                        sha256 = (Get-FileHash -LiteralPath $exe.FullName -Algorithm SHA256).Hash
+        $canonicalPath = [IO.Path]::GetFullPath($gamePath)
+        if (-not $seenPaths.ContainsKey($canonicalPath)) {
+            $installs += Get-Installation $game $gamePath 'Steam' (Get-VdfValue $text 'buildid') (Get-VdfValue $text 'StateFlags')
+            $seenPaths[$canonicalPath] = $true
+        }
+    }
+    if ($game.id -eq '289650') {
+        $candidates = @()
+        if ($UnityPath) {
+            $resolved = Resolve-UnityDirectory $UnityPath
+            if ($resolved) { $candidates += @{ path = $resolved; source = 'Manual' } }
+            else { Write-Warning 'The specified Unity location does not contain ACU.exe.' }
+        }
+        if (-not $NoAutoDiscovery) {
+            foreach ($key in @('HKLM:\SOFTWARE\WOW6432Node\Ubisoft\Launcher\Installs', 'HKLM:\SOFTWARE\Ubisoft\Launcher\Installs', 'HKCU:\SOFTWARE\Ubisoft\Launcher\Installs')) {
+                if (-not (Test-Path -LiteralPath $key)) { continue }
+                foreach ($entry in @(Get-ChildItem -LiteralPath $key -ErrorAction SilentlyContinue)) {
+                    $values = Get-ItemProperty -LiteralPath $entry.PSPath -ErrorAction SilentlyContinue
+                    if (-not $values) { continue }
+                    $prop = $values.PSObject.Properties['InstallDir']
+                    if ($prop -and $prop.Value) {
+                        $resolved = Resolve-UnityDirectory ([string]$prop.Value)
+                        if ($resolved) { $candidates += @{ path = $resolved; source = 'Ubisoft' } }
                     }
-                } catch {
-                    # Avoid including local account names or full paths in the shared report.
-                    $executables += [ordered]@{ name = $exe.Name; error = $_.Exception.GetType().Name }
                 }
             }
         }
-        $installs += [ordered]@{
-            buildId = Get-VdfValue $text 'buildid'
-            stateFlags = Get-VdfValue $text 'StateFlags'
-            directoryExists = [bool]$exists
-            executables = @($executables)
-            existingModFiles = @($modFiles)
-            rootArchiveCount = $archiveCount
+        foreach ($candidate in $candidates) {
+            if ($seenPaths.ContainsKey($candidate.path)) { continue }
+            $installs += Get-Installation $game $candidate.path $candidate.source $null $null
+            $seenPaths[$candidate.path] = $true
+        }
+        $hasExe = @($installs | Where-Object { $_.executables.Count -gt 0 }).Count -gt 0
+        if (-not $hasExe -and $PromptForMissingUnity -and $env:OS -eq 'Windows_NT') {
+            Write-Host 'Unity not found automatically. Select ACU.exe in the game folder, or Cancel.'
+            Add-Type -AssemblyName System.Windows.Forms
+            $dialog = New-Object System.Windows.Forms.OpenFileDialog
+            try {
+                $dialog.Title = "Select Assassin's Creed Unity - ACU.exe"
+                $dialog.Filter = 'Assassin''s Creed Unity (ACU.exe)|ACU.exe'
+                $dialog.CheckFileExists = $true
+                if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                    $resolved = Resolve-UnityDirectory $dialog.FileName
+                    if ($resolved -and -not $seenPaths.ContainsKey($resolved)) {
+                        $installs += Get-Installation $game $resolved 'FilePicker' $null $null
+                    }
+                }
+            } finally { $dialog.Dispose() }
         }
     }
     $results += [ordered]@{ appId = $game.id; name = $game.title; installations = @($installs) }
 }
 
 $report = [ordered]@{
-    schemaVersion = 1
-    purpose = 'Installation metadata for developing RDR2 inside LEGO Star Wars III; not a playable mod'
+    schemaVersion = 2
+    purpose = "Installation metadata for RDR2 and Assassin's Creed Unity; not a playable mod"
     createdUtc = [DateTime]::UtcNow.ToString('o')
     osVersion = [Environment]::OSVersion.Version.ToString()
     powerShellVersion = $PSVersionTable.PSVersion.ToString()
@@ -133,7 +205,7 @@ if (-not (Test-Path -LiteralPath $ReportRoot -PathType Container)) {
     New-Item -ItemType Directory -Path $ReportRoot | Out-Null
 }
 $stamp = [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-fff')
-$reportPath = Join-Path $ReportRoot ('RDR2-LEGO-report-' + $stamp + '.json')
+$reportPath = Join-Path $ReportRoot ('RDR2-UNITY-report-' + $stamp + '.json')
 $json = $report | ConvertTo-Json -Depth 10
 [IO.File]::WriteAllText($reportPath, $json, (New-Object Text.UTF8Encoding($false)))
 foreach ($result in $results) {

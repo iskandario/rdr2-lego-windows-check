@@ -1,14 +1,14 @@
 @echo off
 setlocal DisableDelayedExpansion
-title RDR2 + LEGO III - Installation Check
-echo This checks Steam game versions. This is NOT a playable crossover mod.
+title RDR2 + Assassin's Creed Unity - Installation Check
+echo RDR2 + Assassin's Creed Unity v0.2.0. This is NOT a playable crossover mod.
 echo No game files are changed. Nothing is uploaded.
 echo.
-set "RDR2_LEGO_SELF=%~f0"
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; try { $text=[IO.File]::ReadAllText($env:RDR2_LEGO_SELF); $marker='# BEGIN EMBEDDED POWERSHELL'; $index=$text.LastIndexOf($marker); if($index -lt 0){throw 'Embedded script missing. Download CHECK-WINDOWS.cmd again.'}; $code=$text.Substring($index+$marker.Length); $reportRoot=$env:RDR2_LEGO_REPORT_ROOT; if(-not $reportRoot){$base=[Environment]::GetFolderPath('Desktop'); if(-not $base){$base=[Environment]::GetFolderPath('MyDocuments')}; if(-not $base){$base=$env:USERPROFILE}; if(-not $base){throw 'Cannot find a persistent report folder.'}; $reportRoot=Join-Path $base 'RDR2-LEGO-Reports'}; & ([scriptblock]::Create($code)) -ReportRoot $reportRoot; exit 0 } catch { Write-Host ('Check failed: '+$_.Exception.Message) -ForegroundColor Red; exit 1 }"
-set "RDR2_LEGO_EXIT=%ERRORLEVEL%"
-if not "%RDR2_LEGO_EXIT%"=="0" echo Please send the error text from this window.
+set "RDR2_CHECK_SELF=%~f0"
+powershell.exe -STA -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; try { $text=[IO.File]::ReadAllText($env:RDR2_CHECK_SELF); $marker='# BEGIN EMBEDDED POWERSHELL'; $index=$text.LastIndexOf($marker); if($index -lt 0){throw 'Embedded script missing. Download CHECK-WINDOWS.cmd again.'}; $code=$text.Substring($index+$marker.Length); $reportRoot=$env:RDR2_CHECK_REPORT_ROOT; if(-not $reportRoot){$base=[Environment]::GetFolderPath('Desktop'); if(-not $base){$base=[Environment]::GetFolderPath('MyDocuments')}; if(-not $base){$base=$env:USERPROFILE}; if(-not $base){throw 'Cannot find a persistent report folder.'}; $reportRoot=Join-Path $base 'RDR2-UNITY-Reports'}; & ([scriptblock]::Create($code)) -ReportRoot $reportRoot -UnityPath $env:RDR2_CHECK_UNITY_PATH -PromptForMissingUnity:([string]::IsNullOrEmpty($env:RDR2_CHECK_NONINTERACTIVE)); exit 0 } catch { Write-Host ('Check failed: '+$_.Exception.Message) -ForegroundColor Red; exit 1 }"
+set "RDR2_CHECK_EXIT=%ERRORLEVEL%"
+if not "%RDR2_CHECK_EXIT%"=="0" echo Please send the error text from this window.
 echo.
-if not defined RDR2_LEGO_NO_PAUSE pause
-exit /b %RDR2_LEGO_EXIT%
+if not defined RDR2_CHECK_NONINTERACTIVE pause
+exit /b %RDR2_CHECK_EXIT%
 # BEGIN EMBEDDED POWERSHELL
