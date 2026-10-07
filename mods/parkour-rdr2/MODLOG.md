@@ -41,6 +41,11 @@ clang++ C++17 tests passed with AddressSanitizer/UndefinedBehaviorSanitizer;
 PowerShell installer parser check passed. Expanded-box geometry independently
 checks that the lift-then-cross route clears a wall while the direct diagonal
 does not. Query failures, support rejection, timeout and 30/60/144Hz paths tested.
-Windows compilation is the next check. No game runtime is accessible in this
-Mac session. Compilation and synthetic tests cannot establish in-game success.
-Public package must remain an explicitly unverified prerelease.
+Windows x64 compilation and CTest passed in Actions run 37656985130. Downloaded
+artifact contains a real PE32+ x86-64 DLL (.asi), not source-only code. The next
+run 37657316378 also compiled/passed CTest; all installer assertions passed,
+including saved-file checksums and refusal paths. Its step initially reported
+failure because the test harness propagated the last EXPECTED child failure
+exit code; fixed the harness to explicitly exit 0 after all assertions.
+No game runtime is accessible in this Mac session. Compilation and synthetic
+tests cannot establish in-game success. Package remains an unverified prerelease.

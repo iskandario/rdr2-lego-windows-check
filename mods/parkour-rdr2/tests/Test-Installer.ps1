@@ -61,3 +61,5 @@ $target = New-GameFixture 'corrupt-target'
 if ((Run-Scenario 'install' $target $corrupt) -eq 0) { throw 'Corrupted package accepted' }
 if (Test-Path (Join-Path $target 'AssassinTraversal.asi')) { throw 'Corrupt package touched game directory' }
 Write-Host 'PASS: installer success, backup hashes, unchanged game/save, cancellation, loader/hot-reload guards, no overwrite and corrupt package.'
+# Expected child-process failures must not become the GitHub step's exit code.
+exit 0

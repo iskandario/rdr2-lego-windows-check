@@ -2,6 +2,7 @@
 [CmdletBinding()]
 param([string]$GameDirectory)
 $ErrorActionPreference = 'Stop'
+$copyStarted = $false
 try {
     Write-Host 'Assassin Traversal 0.1.0 - EXPERIMENTAL, NOT TESTED IN GAME' -ForegroundColor Yellow
     Write-Host 'Story Mode only. NOT a full Assassin Creed parkour port.'
@@ -73,6 +74,7 @@ try {
     }
     foreach ($file in @('AssassinTraversal.asi', 'AssassinTraversal.ini')) {
         # File.Copy(overwrite:false) refuses races and unintended overwrites.
+        $copyStarted = $true
         [IO.File]::Copy((Join-Path $PSScriptRoot $file), (Join-Path $GameDirectory $file), $false)
     }
     Write-Host 'Installed. Launch your normal RDR2 through Steam and choose STORY MODE.' -ForegroundColor Green
@@ -82,6 +84,8 @@ try {
     Write-Host 'Send AssassinTraversal.log from the game folder and a short video if something fails.'
 } catch {
     Write-Host $_.Exception.Message -ForegroundColor Red
-    Write-Host 'If copying failed part-way: with RDR2 closed, inspect/remove only AssassinTraversal.asi and AssassinTraversal.ini.'
+    if ($copyStarted) {
+        Write-Host 'Copying failed part-way: with RDR2 closed, inspect only AssassinTraversal.asi and AssassinTraversal.ini; keep the saves backup.'
+    }
     exit 1
 }
