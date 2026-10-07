@@ -2,6 +2,11 @@
 
 ## Новый игровой прототип для RDR2
 
+**[Полная инструкция по установке: ScriptHook + ASI loader + мод](START-HERE-RU.md).**
+В официальном архиве ScriptHook уже есть загрузчик `dinput8.dll`.
+[Открыть страницу скачивания на Windows](https://github.com/iskandario/rdr2-lego-windows-check/releases/download/traversal-v0.1.0/OPEN-SCRIPTHOOK.cmd).
+Сторонняя `ScriptHookRDR2.dll` не включена: условия SDK запрещают её распространение с модами.
+
 [Assassin Traversal — Windows x64](mods/parkour-rdr2/README.md): ASI-мод с первым
 зацепом за уступ, висом и подъёмом. **Экспериментальный, в игре пока не проверен;
 не полный перенос паркура Assassin's Creed.**
