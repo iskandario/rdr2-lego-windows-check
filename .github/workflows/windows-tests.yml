@@ -1,0 +1,17 @@
+name: Windows PowerShell 5.1 tests
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test scanner and standalone launcher
+        shell: powershell
+        run: ./tests/Test-Check.ps1
+      - name: Verify generated launcher is current
+        shell: powershell
+        run: |
+          ./tools/Build-Launcher.ps1
+          git diff --exit-code -- CHECK-WINDOWS.cmd
